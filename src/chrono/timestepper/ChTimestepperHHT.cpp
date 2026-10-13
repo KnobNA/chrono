@@ -93,6 +93,8 @@ void ChTimestepperHHT::FinalizeStep() {
 void ChTimestepperHHT::PrepareStep() {
     if (step_control)
         Anew = A;
+    else
+        Anew.setZero(integrable->GetNumCoordsVelLevel(), integrable);
     Vnew = V + Anew * h;
     Xnew = X + Vnew * h + Anew * (h * h);
     integrable->LoadResidual_F(Rold, -alpha / (1.0 + alpha));       // -alpha/(1.0+alpha) * f_old

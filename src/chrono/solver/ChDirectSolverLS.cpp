@@ -281,7 +281,7 @@ void ChDirectSolverLS::ArchiveIn(ChArchiveIn& archive_in) {
 // ---------------------------------------------------------------------------
 
 bool ChSolverSparseLU::FactorizeMatrix(bool analyze) {
-    if (analyze) {
+    if (analyze && (m_setup_call == 0 || !m_lock)) {
         m_engine.analyzePattern(m_mat);
         // Note: Eigen does not set info after the analyzePattern call -> no possible failure here
     }

@@ -133,6 +133,15 @@ void ChNodeFEAxyzrot::NodeIntStateGetIncrement(const unsigned int off_x,
     ChQuaternion<> q_old(x.segment(off_x + 3, 4));
     ChQuaternion<> q_new(x_new.segment(off_x + 3, 4));
     ChQuaternion<> rel_q = q_old.GetConjugate() * q_new;
+    // q and -q are the same rotation. GetRotVec() of the negative one returns
+    // the long way around (angle > pi, up to a full turn), and a Newton
+    // correction then spins the node instead of taking the short arc.
+    if (rel_q.e0() < 0.0) {
+        rel_q.e0() = -rel_q.e0();
+        rel_q.e1() = -rel_q.e1();
+        rel_q.e2() = -rel_q.e2();
+        rel_q.e3() = -rel_q.e3();
+    }
     Dv.segment(off_v + 3, 3) = rel_q.GetRotVec().eigen();
 }
 

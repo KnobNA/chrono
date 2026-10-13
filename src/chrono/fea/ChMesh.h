@@ -59,6 +59,15 @@ class ChApi ChMesh : public ChIndexedNodes {
     /// Add provided element to the mesh.
     void AddElement(std::shared_ptr<ChElementBase> elem);
 
+    /// Drop an element that has been replaced by a rigid shard. Nodes stay;
+    /// the caller fixes them so they leave the unknown vector.
+    void RemoveElement(std::shared_ptr<ChElementBase> elem);
+
+    /// Recompute one element's reference state from its current nodes.
+    /// A torn shard is added after the mesh is already initialized; this
+    /// leaves every other element's rest pose alone.
+    void InitializeElement(const std::shared_ptr<ChElementBase>& element);
+
     void ClearNodes();
     void ClearElements();
 

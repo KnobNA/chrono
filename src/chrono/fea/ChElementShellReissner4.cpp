@@ -15,6 +15,8 @@
 // =============================================================================
 
 #include <cmath>
+#include <map>
+#include <memory>
 
 #include "chrono/physics/ChSystem.h"
 #include "chrono/timestepper/ChState.h"
@@ -323,7 +325,20 @@ ChElementShellReissner4::ChElementShellReissner4() : tot_thickness(0) {
         L_alpha_beta_A[i].setZero();
 }
 
-ChElementShellReissner4::~ChElementShellReissner4() {}
+namespace {
+struct ReissnerPlasticSlots {
+    std::vector<std::unique_ptr<ChShellReissnerInternalData>> current;
+    std::vector<std::unique_ptr<ChShellReissnerInternalData>> committed;
+};
+std::map<const ChElementShellReissner4*, ReissnerPlasticSlots>& plasticSlots() {
+    static std::map<const ChElementShellReissner4*, ReissnerPlasticSlots> slots;
+    return slots;
+}
+}  // namespace
+
+ChElementShellReissner4::~ChElementShellReissner4() {
+    plasticSlots().erase(this);
+}
 
 void ChElementShellReissner4::SetNodes(std::shared_ptr<ChNodeFEAxyzrot> nodeA,
                                        std::shared_ptr<ChNodeFEAxyzrot> nodeB,
@@ -582,6 +597,38 @@ void ChElementShellReissner4::SetupInitial(ChSystem* system) {
 
     // Compute mass matrix
     ComputeMassMatrix();
+    AllocatePlasticData();
+}
+
+void ChElementShellReissner4::AllocatePlasticData() {
+    plasticSlots().erase(this);
+    if (m_layers.empty())
+        return;
+    auto plastic = m_layers[0].GetMaterial()->GetPlasticity();
+    if (!plastic)
+        return;
+    ReissnerPlasticSlots slots;
+    plastic->CreatePlasticityData(NUMIP, slots.current);
+    plastic->CreatePlasticityData(NUMIP, slots.committed);
+    plasticSlots().emplace(this, std::move(slots));
+}
+
+const ChShellReissnerInternalData* ChElementShellReissner4::GetPlasticData(int ip) const {
+    const auto found = plasticSlots().find(this);
+    if (found == plasticSlots().end())
+        return nullptr;
+    if (ip < 0 || ip >= static_cast<int>(found->second.current.size()))
+        return nullptr;
+    return found->second.current[static_cast<size_t>(ip)].get();
+}
+
+void ChElementShellReissner4::EleDoIntegration() {
+    const auto found = plasticSlots().find(this);
+    if (found == plasticSlots().end())
+        return;
+    auto& slots = found->second;
+    for (size_t i = 0; i < slots.current.size() && i < slots.committed.size(); ++i)
+        slots.committed[i]->Copy(*slots.current[i]);
 }
 
 // State update.
@@ -867,8 +914,18 @@ void ChElementShellReissner4::ComputeInternalForces(ChVectorDynamic<>& Fi) {
         // loop on layers
         for (size_t il = 0; il < this->m_layers.size(); ++il) {
             // compute layer stresses (per-unit-length forces and torques), and accumulate
+            ChShellReissnerInternalData* plastic_new = nullptr;
+            const ChShellReissnerInternalData* plastic_old = nullptr;
+            if (il == 0) {
+                const auto found = plasticSlots().find(this);
+                if (found != plasticSlots().end() && i < static_cast<int>(found->second.current.size())) {
+                    plastic_new = found->second.current[static_cast<size_t>(i)].get();
+                    plastic_old = found->second.committed[static_cast<size_t>(i)].get();
+                }
+            }
             m_layers[il].GetMaterial()->ComputeStress(l_n1, l_n2, l_m1, l_m2, eps_tot_1, eps_tot_2, k_tot_1, k_tot_2,
-                                                      m_layers_z[il], m_layers_z[il + 1], m_layers[il].GetFiberAngle());
+                                                      m_layers_z[il], m_layers_z[il + 1], m_layers[il].GetFiberAngle(),
+                                                      plastic_new, plastic_old);
             n1 += l_n1;
             n2 += l_n2;
             m1 += l_m1;
@@ -998,11 +1055,17 @@ void ChElementShellReissner4::ComputeInternalJacobians(double Kfactor, double Rf
         // loop on layers
         for (size_t il = 0; il < m_layers.size(); ++il) {
             // compute layer tang. material stiff, and accumulate
+            const ChShellReissnerInternalData* plastic_state = nullptr;
+            if (il == 0) {
+                const auto found = plasticSlots().find(this);
+                if (found != plasticSlots().end() && i < static_cast<int>(found->second.current.size()))
+                    plastic_state = found->second.current[static_cast<size_t>(i)].get();
+            }
             m_layers[il].GetMaterial()->ComputeStiffnessMatrix(
                 l_C, eps_tilde_1_i[i], eps_tilde_2_i[i], k_tilde_1_i[i], k_tilde_2_i[i], m_layers_z[il],
                 m_layers_z[il + 1],
-                m_layers[il]
-                    .GetFiberAngle());  // ***TODO*** use the total epsilon including the 'hat' component from EAS
+                m_layers[il].GetFiberAngle(),
+                plastic_state);  // ***TODO*** use the total epsilon including the 'hat' component from EAS
             C += l_C;
         }
 

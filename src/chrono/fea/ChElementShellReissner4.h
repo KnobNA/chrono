@@ -172,6 +172,16 @@ class ChApi ChElementShellReissner4 : public ChElementShell, public ChLoadableUV
 
     ChQuaternion<> GetAvgRot() { return T_overline.GetQuaternion(); }
 
+    /// Plastic state at integration point `ip` of the first layer, or nullptr
+    /// when this element has no plasticity model. Valid after the internal
+    /// force evaluation of the current step.
+    const ChShellReissnerInternalData* GetPlasticData(int ip) const;
+
+    /// Commit the return-mapped plastic state. Chrono calls this from the
+    /// mesh state increment, once the step's correction has been accepted
+    /// into the nodal state.
+    virtual void EleDoIntegration() override;
+
     // Shape functions
     // ---------------
 
@@ -191,6 +201,8 @@ class ChApi ChElementShellReissner4 : public ChElementShell, public ChLoadableUV
     virtual unsigned int iGetNumDof(void) const { return 7; };
 
   private:
+    void AllocatePlasticData();
+
     /// Initial setup.
     /// This is used mostly to precompute matrices that do not change during the simulation,
     /// such as the local stiffness of each element (if any), the mass, etc.

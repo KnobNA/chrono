@@ -49,6 +49,11 @@ ChMesh::ChMesh(const ChMesh& other) : ChIndexedNodes(other) {
     ncalls_KRMload = 0;
 }
 
+void ChMesh::InitializeElement(const std::shared_ptr<ChElementBase>& element) {
+    if (element)
+        element->SetupInitial(GetSystem());
+}
+
 void ChMesh::SetupInitial() {
     n_dofs = 0;
     n_dofs_w = 0;
@@ -98,6 +103,19 @@ void ChMesh::AddElement(std::shared_ptr<ChElementBase> elem) {
     velements.push_back(elem);
 
     // If the mesh is already added to a system, mark the system uninitialized and out-of-date
+    if (system) {
+        system->is_initialized = false;
+        system->is_updated = false;
+    }
+}
+
+void ChMesh::RemoveElement(std::shared_ptr<ChElementBase> elem) {
+    if (!elem)
+        return;
+    const auto found = std::find(velements.begin(), velements.end(), elem);
+    if (found == velements.end())
+        return;
+    velements.erase(found);
     if (system) {
         system->is_initialized = false;
         system->is_updated = false;
