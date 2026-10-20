@@ -275,9 +275,8 @@ void ChMesh::IntStateIncrement(const unsigned int off_x,
             local_off_v += vnodes[j]->GetNumCoordsVelLevelActive();
         }
     }
-    for (unsigned int ie = 0; ie < velements.size(); ie++) {
-        velements[ie]->EleDoIntegration();
-    }
+    // Plastic return mapping commits with the accepted step, not with every
+    // Newton correction. Committing here ratchets the trial strain.
 }
 
 void ChMesh::IntStateGetIncrement(const unsigned int off_x,

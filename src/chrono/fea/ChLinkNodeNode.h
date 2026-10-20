@@ -62,6 +62,11 @@ class ChApi ChLinkNodeNode : public ChLinkBase {
                            std::shared_ptr<ChNodeFEAxyz> node2   ///< xyz node (point) to join
     );
 
+    /// Separation (node1 - node2) that the constraint treats as satisfied.
+    /// The default, zero, pulls the two nodes onto one point.
+    void SetRestOffset(const ChVector3d& offset) { m_offset = offset; }
+    const ChVector3d& GetRestOffset() const { return m_offset; }
+
     /// Get the 1st connected xyz node.
     std::shared_ptr<fea::ChNodeFEAxyz> GetNode1() const { return m_node1; }
 
@@ -120,6 +125,7 @@ class ChApi ChLinkNodeNode : public ChLinkBase {
 
   private:
     ChVector3d react;
+    ChVector3d m_offset = VNULL;
 
     // used as an interface to the solver.
     ChConstraintTwoGeneric m_constraint1;

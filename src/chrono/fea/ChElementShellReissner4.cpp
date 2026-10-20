@@ -631,6 +631,15 @@ void ChElementShellReissner4::EleDoIntegration() {
         slots.committed[i]->Copy(*slots.current[i]);
 }
 
+void ChElementShellReissner4::DiscardPlasticTrial() {
+    const auto found = plasticSlots().find(this);
+    if (found == plasticSlots().end())
+        return;
+    auto& slots = found->second;
+    for (size_t i = 0; i < slots.current.size() && i < slots.committed.size(); ++i)
+        slots.current[i]->Copy(*slots.committed[i]);
+}
+
 // State update.
 void ChElementShellReissner4::Update() {
     ChElementGeneric::Update();

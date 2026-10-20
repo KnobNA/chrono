@@ -26,6 +26,7 @@ ChLinkNodeNode::ChLinkNodeNode() : react(VNULL) {}
 
 ChLinkNodeNode::ChLinkNodeNode(const ChLinkNodeNode& other) : ChLinkBase(other) {
     react = other.react;
+    m_offset = other.m_offset;
 }
 
 int ChLinkNodeNode::Initialize(std::shared_ptr<ChNodeFEAxyz> node1, std::shared_ptr<ChNodeFEAxyz> node2) {
@@ -52,7 +53,7 @@ void ChLinkNodeNode::Update(double time, UpdateFlags update_flags) {
 }
 
 ChVectorDynamic<> ChLinkNodeNode::GetConstraintViolation() const {
-    ChVector3d res = m_node1->GetPos() - m_node2->GetPos();
+    ChVector3d res = m_node1->GetPos() - m_node2->GetPos() - m_offset;
     ChVectorN<double, 3> C;
     C(0) = res.x();
     C(1) = res.y();
@@ -97,7 +98,7 @@ void ChLinkNodeNode::IntLoadConstraint_C(const unsigned int off_L,  // offset in
     if (!IsActive())
         return;
 
-    ChVector3d res = m_node1->GetPos() - m_node2->GetPos();
+    ChVector3d res = m_node1->GetPos() - m_node2->GetPos() - m_offset;
     ChVector3d cres = res * c;
 
     if (do_clamp) {
@@ -158,7 +159,7 @@ void ChLinkNodeNode::ConstraintsBiReset() {
 }
 
 void ChLinkNodeNode::ConstraintsBiLoad_C(double factor, double recovery_clamp, bool do_clamp) {
-    ChVector3d res = m_node1->GetPos() - m_node2->GetPos();
+    ChVector3d res = m_node1->GetPos() - m_node2->GetPos() - m_offset;
 
     m_constraint1.SetRightHandSide(m_constraint1.GetRightHandSide() + factor * res.x());
     m_constraint2.SetRightHandSide(m_constraint2.GetRightHandSide() + factor * res.y());

@@ -177,10 +177,13 @@ class ChApi ChElementShellReissner4 : public ChElementShell, public ChLoadableUV
     /// force evaluation of the current step.
     const ChShellReissnerInternalData* GetPlasticData(int ip) const;
 
-    /// Commit the return-mapped plastic state. Chrono calls this from the
-    /// mesh state increment, once the step's correction has been accepted
-    /// into the nodal state.
+    /// Copy the trial plastic state into the committed state. Call this only
+    /// after a step is accepted. A Newton increment must not commit it: the
+    /// trial is recomputed from the committed state on every residual.
     virtual void EleDoIntegration() override;
+
+    /// Drop the trial plastic state and restore the last committed one.
+    void DiscardPlasticTrial();
 
     // Shape functions
     // ---------------
